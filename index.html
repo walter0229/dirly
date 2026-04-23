@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Diary - 24H Clock</title>
+  <script type="module" crossorigin src="./assets/index-B0-TuXKG.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Bcc_AebQ.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="header-content">
+                <h1>Life Diary <span class="app-version">v2.0.7</span></h1>
+                <nav class="main-nav">
+                    <button id="open-planner-btn" class="glass-btn">일정세팅</button>
+                    <button id="open-diary-btn" class="glass-btn">Diary</button>
+                    <button id="open-stats-btn" class="glass-btn">운동통계</button>
+                    <button id="open-date-search-btn" class="glass-btn">날짜검색</button>
+                    <button id="open-memo-search-btn" class="glass-btn">메모검색</button>
+                </nav>
+                <div id="current-date-display">
+                    <span id="date-text"></span>
+                    <span id="time-text"></span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-clock-view">
+            <div class="clock-container">
+                <canvas id="clock-24h"></canvas>
+                <p id="clock-center-label">현재 시간 (베트남)</p>
+            </div>
+            
+            <!-- 시계 일정 클릭 시 나타나는 플로팅 메뉴 (심플 버전으로 복구) -->
+            <div id="clock-action-menu" class="floating-menu">
+                <button class="menu-item complete-action">완료</button>
+                <button class="menu-item edit-action">편집</button>
+                <button class="menu-item delete-action">삭제</button>
+            </div>
+        </main>
+
+        <!-- [1] 일정세팅 모달 -->
+        <div id="planner-modal" class="full-modal">
+            <div class="modal-content glass-card">
+                <div class="modal-header">
+                    <div class="title-with-date">
+                        <h2>일정 세팅</h2>
+                        <input type="date" id="planner-date-input" class="planner-date-picker">
+                    </div>
+                    <div class="header-actions">
+                        <button id="add-schedule-btn" class="glass-btn primary-btn">+ 일정추가</button>
+                        <button id="close-planner-btn" class="close-btn">&times;</button>
+                    </div>
+                </div>
+                <div class="table-scroll-area">
+                    <table id="daily-planner-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 220px;">시간 범위</th>
+                                <th style="width: 130px;">항목</th>
+                                <th>내용</th>
+                                <th style="width: 110px;">반복</th>
+                                <th style="width: 80px;">삭제</th>
+                            </tr>
+                        </thead>
+                        <tbody id="planner-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- [2] 운동통계 모달 -->
+        <div id="stats-modal" class="full-modal">
+            <div class="modal-content glass-card">
+                <div class="modal-header">
+                    <h2>운동 통계</h2>
+                    <div class="stats-period-selector">
+                        <button class="glass-btn period-btn active" data-period="weekly">주간</button>
+                        <button class="glass-btn period-btn" data-period="monthly">월간</button>
+                        <button class="glass-btn period-btn" data-period="yearly">연간</button>
+                    </div>
+                    <button id="close-stats-btn" class="close-btn">&times;</button>
+                </div>
+                <div id="charts-container" class="charts-scroll-area">
+                    <!-- 종목별 차트가 여기에 동적으로 생성됩니다 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- [3] 날짜검색 모달 -->
+        <div id="date-search-modal" class="full-modal">
+            <div class="modal-content glass-card small-modal">
+                <div class="modal-header">
+                    <h2>날짜 이동</h2>
+                    <button id="close-date-modal-btn" class="close-btn">&times;</button>
+                </div>
+                <div class="date-picker-container">
+                    <input type="date" id="history-date-picker" class="large-date-input">
+                    <button id="go-to-date-btn" class="glass-btn primary-btn">이동하기</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- [4] 메모검색 모달 -->
+        <div id="memo-search-modal" class="full-modal">
+            <div class="modal-content glass-card">
+                <div class="modal-header">
+                    <h2>메모 및 기록 검색</h2>
+                    <button id="close-memo-search-btn" class="close-btn">&times;</button>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="history-search" placeholder="검색어를 입력하세요 (예: 윗몸일으키기, 회사...)">
+                    <button id="search-btn" class="glass-btn primary-btn">검색</button>
+                </div>
+                <div id="search-results" class="search-results-area"></div>
+            </div>
+        </div>
+
+        <!-- [5] Diary 모달 -->
+        <div id="diary-modal" class="full-modal">
+            <div class="modal-content glass-card diary-modal-card">
+                <div class="modal-header">
+                    <div class="title-with-date">
+                        <h2>오늘의 일기</h2>
+                        <input type="date" id="diary-date-input" class="planner-date-picker">
+                    </div>
+                    <button id="close-diary-btn" class="close-btn">&times;</button>
+                </div>
+                <div class="diary-scroll-area">
+                    <div id="diary-content" class="diary-text-container">
+                        <!-- 일기 내용이 여기에 생성됩니다 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 일정 완료 메모 입력창 -->
+        <div id="memo-modal" class="modal">
+            <div class="modal-content glass-card small-modal">
+                <h3>기록 메모</h3>
+                <p id="memo-item-info"></p>
+                <textarea id="memo-input" placeholder="이 일정에 대해 남길 기록이 있나요?"></textarea>
+                <div class="modal-btns">
+                    <button id="save-memo-btn" class="glass-btn primary-btn">기록하기</button>
+                    <button id="close-memo-modal-btn" class="glass-btn">닫기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
