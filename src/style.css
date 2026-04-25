@@ -244,6 +244,14 @@ header h1 {
     flex-direction: column;
 }
 
+.modal-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden; /* 내부 개별 스크롤 영역에 위임 */
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;
