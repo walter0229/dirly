@@ -3,10 +3,14 @@ import { saveSchedule, fetchSchedules, deleteSchedule, subscribeSchedules } from
 
 export class Planner {
     constructor() {
-        this.currentDate = formatVN(getVietnamTime(), 'yyyy-MM-dd');
+        // 시스템 시간이 아닌 베트남 시간을 즉시 가져와서 초기화 (v2.1.8)
+        const vnNow = getVietnamTime();
+        this.currentDate = formatVN(vnNow, 'yyyy-MM-dd');
         this.schedules = [];
         this.onUpdate = null;
         this.isInitialized = false;
+        this.syncTimeout = null; 
+        console.log('[Planner] Initialized with Vietnam Date:', this.currentDate);
     }
 
     async init() {
@@ -16,25 +20,23 @@ export class Planner {
         this.setupEventListeners();
         this.updateDateDisplay();
 
-        // 2. 실시간 구독 설정
+        // 2. 초기 마이그레이션 (중요: 서버 구독 전에 로컬 데이터를 먼저 서버로 밀어넣음)
+        console.log('[Planner] Starting critical migration check...');
+        await this.migrateLocalToFirebase();
+
+        // 3. 실시간 구독 설정
         this.unsubscribe = subscribeSchedules(async (allSchedules) => {
-            const hasMigrated = localStorage.getItem('firebase_migrated');
+            console.log('[Planner] Real-time sync received:', allSchedules.length);
             
-            // 마이그레이션이 완료되지 않았는데 빈 데이터를 받으면 무시 (로컬 데이터 보존)
-            if (!hasMigrated && allSchedules.length === 0) {
-                console.log('[Planner] Ignoring empty Firebase data before migration');
-                return;
+            // 서버에 데이터가 있고, 로컬 데이터와 다를 경우에만 업데이트
+            const local = JSON.parse(localStorage.getItem('local_schedules') || '[]');
+            if (allSchedules.length > 0) {
+                // 단순 덮어쓰기가 아닌, ID 기반으로 없는 데이터만 추가하거나 업데이트하는 방식으로 개선 가능하지만
+                // 여기서는 서버 데이터를 마스터로 보되, 마이그레이션이 끝난 후에만 작동하도록 함
+                localStorage.setItem('local_schedules', JSON.stringify(allSchedules));
+                await this.loadData();
+                this.renderList();
             }
-
-            console.log('[Planner] Real-time sync updated', allSchedules.length);
-            localStorage.setItem('local_schedules', JSON.stringify(allSchedules));
-            await this.loadData();
-            this.renderList();
-        });
-
-        // 3. 초기 마이그레이션 (비동기로 진행하여 UI를 방해하지 않음)
-        this.migrateLocalToFirebase().then(() => {
-            console.log('[Planner] Migration check finished');
         });
 
         await this.loadData();
@@ -144,6 +146,7 @@ export class Planner {
                 <td>
                     <select class="cat-select cat-${item.category || '기타'}" data-id="${item.id}">
                         <option value="회사" ${item.category === '회사' ? 'selected' : ''}>회사</option>
+                        <option value="미팅" ${item.category === '미팅' ? 'selected' : ''}>미팅</option>
                         <option value="집안일" ${item.category === '집안일' ? 'selected' : ''}>집안일</option>
                         <option value="식사" ${item.category === '식사' ? 'selected' : ''}>식사</option>
                         <option value="운동" ${item.category === '운동' ? 'selected' : ''}>운동</option>
@@ -233,6 +236,13 @@ export class Planner {
         const tbody = document.getElementById('planner-body');
         if (!tbody) return;
 
+        // [이전 값 저장] 포커스 시점에 현재 값을 저장하여 검증 실패 시 복원용으로 사용
+        tbody.addEventListener('focusin', (e) => {
+            if (e.target.classList.contains('start-time') || e.target.classList.contains('end-time')) {
+                e.target.dataset.oldValue = e.target.value;
+            }
+        });
+
         // [삭제 및 추가 버튼 클릭 이벤트 위임]
         tbody.addEventListener('click', async (e) => {
             const delBtn = e.target.closest('.delete-btn');
@@ -266,39 +276,15 @@ export class Planner {
             const item = this.schedules.find(s => s.id === id);
             if (!item) return;
 
-            // 이전 값 백업 (검증 실패 시 복구용)
-            const backup = { ...item };
-
             if (e.target.classList.contains('start-time')) item.startTime = e.target.value;
             if (e.target.classList.contains('end-time')) item.endTime = e.target.value;
             if (e.target.classList.contains('cat-select')) item.category = e.target.value;
             if (e.target.classList.contains('repeat-select')) item.repeat = e.target.value;
 
-            // 시간 관련 변경 시 검증
-            if (e.target.classList.contains('start-time') || e.target.classList.contains('end-time')) {
-                // 1. 논리적 오류 체크 (시작 > 종료)
-                if (item.startTime >= item.endTime) {
-                    alert('⚠️ 시작 시간은 종료 시간보다 빨라야 합니다.');
-                    // 즉시 롤백하지 않고 사용자에게 수정 기회를 줌 (input에 focus 유지)
-                    e.target.focus();
-                    return; 
-                }
-
-                // 2. 다른 일정과 중복 체크
-                if (this.isOverlap(item)) {
-                    alert('⚠️ 이미 해당 시간에 다른 일정이 있습니다! 다시 확인해 주세요.');
-                    item.startTime = backup.startTime;
-                    item.endTime = backup.endTime;
-                    this.renderList();
-                    return;
-                }
-            }
-            
-            // 변경 사항 즉시 저장 및 UI 갱신 (단, renderList는 포커스를 뺏으므로 시간 입력 시에는 유예)
+            // 변경 사항 즉시 저장 (검증은 blur에서 수행하여 입력 흐름을 방해하지 않음)
             await this.syncData(item);
             
-            // 시간 입력이나 내용 입력 중에는 전체 리스트를 다시 그리지 않음 (포커스 유지)
-            // 대신 시계에는 실시간 반영되도록 syncData 내부에서 onUpdate 호출
+            // 카테고리나 반복 설정 변경 시에만 리스트 갱신
             const isTimeInput = e.target.classList.contains('start-time') || e.target.classList.contains('end-time');
             const isContentInput = e.target.classList.contains('content-input');
             
@@ -334,7 +320,7 @@ export class Planner {
             }
         });
 
-        tbody.addEventListener('blur', async (e) => {
+        tbody.addEventListener('focusout', async (e) => {
             const id = e.target.dataset.id;
             const item = this.schedules.find(s => s.id === id);
             if (!item) return;
@@ -343,11 +329,36 @@ export class Planner {
                 await this.syncData(item);
             }
             
-            // 시간 입력이 끝났을 때(blur) 리스트를 정렬하여 다시 그려줌
-            if (e.target.classList.contains('start-time') || e.target.classList.contains('end-time')) {
+            // 시간 입력 검증: .time-range-container를 완전히 벗어났을 때만 수행
+            const timeContainer = e.target.closest('.time-range-container');
+            if (timeContainer && (!e.relatedTarget || !timeContainer.contains(e.relatedTarget))) {
+                const startInput = timeContainer.querySelector('.start-time');
+                const endInput = timeContainer.querySelector('.end-time');
+                
+                // 1. 논리적 오류 체크 (시작 > 종료)
+                if (item.startTime >= item.endTime) {
+                    alert('⚠️ 시작 시간은 종료 시간보다 빨라야 합니다.');
+                    // 둘 다 이전 값으로 복원 (간단하게 renderList 재호출로 해결 가능하지만 데이터 정합성 위해)
+                    item.startTime = startInput.dataset.oldValue || item.startTime;
+                    item.endTime = endInput.dataset.oldValue || item.endTime;
+                    this.renderList();
+                    await this.syncData(item);
+                    return;
+                }
+
+                // 2. 다른 일정과 중복 체크
+                if (this.isOverlap(item)) {
+                    alert('⚠️ 이미 해당 시간에 다른 일정이 있습니다! 다시 확인해 주세요.');
+                    item.startTime = startInput.dataset.oldValue || item.startTime;
+                    item.endTime = endInput.dataset.oldValue || item.endTime;
+                    this.renderList();
+                    await this.syncData(item);
+                    return;
+                }
+
                 this.renderList(); 
             }
-        }, true);
+        });
     }
 
     async deleteSchedule(id) {
@@ -398,12 +409,19 @@ export class Planner {
     }
 
     async syncData(item) {
-        try {
-            await saveSchedule(item);
-            if (this.onUpdate) this.onUpdate(this.schedules);
-        } catch (e) {
-            console.error('Sync failed', e);
-        }
+        // 실시간 시계 업데이트 (로컬)
+        if (this.onUpdate) this.onUpdate(this.schedules);
+
+        // Firebase 저장은 디바운스 처리 (500ms)
+        if (this.syncTimeout) clearTimeout(this.syncTimeout);
+        this.syncTimeout = setTimeout(async () => {
+            try {
+                console.log('[Planner] Debounced sync starting for:', item.id);
+                await saveSchedule(item);
+            } catch (e) {
+                console.error('[Planner] Sync failed', e);
+            }
+        }, 500);
     }
 
     showMemoModal(item) {
@@ -426,9 +444,9 @@ export class Planner {
             found.status = 'complete';
             localStorage.setItem('local_schedules', JSON.stringify(all));
             
-            // 기존 운동 데이터 삭제 (수정 시 중복 방지)
+            // 기존 운동 데이터 삭제 (해당 날짜만 삭제하여 다른 날짜 데이터 보존)
             const { saveExercise, deleteExerciseByScheduleId } = await import('./firebase');
-            await deleteExerciseByScheduleId(id);
+            await deleteExerciseByScheduleId(id, this.currentDate);
             
             // 새 운동 데이터 파싱 및 저장 (카테고리가 '운동'인 경우)
             if (found.category === '운동' && memo) {
@@ -448,8 +466,8 @@ export class Planner {
                             
                             exerciseData.push({
                                 id: this.generateId(),
-                                date: found.date,
-                                name: title, // title을 name 필드로 저장 (스키마 일치)
+                                date: this.currentDate, // 원본 날짜가 아닌 현재 플래너 날짜(오늘) 사용 (v2.1.8)
+                                name: title, 
                                 value,
                                 unit,
                                 schedule_id: id

@@ -90,9 +90,15 @@ export async function fetchExerciseStats() {
     }
 }
 
-export async function deleteExerciseByScheduleId(scheduleId) {
+export async function deleteExerciseByScheduleId(scheduleId, date = null) {
     try {
-        const q = query(collection(db, 'exercises'), where('schedule_id', '==', scheduleId));
+        let q;
+        if (date) {
+            q = query(collection(db, 'exercises'), where('schedule_id', '==', scheduleId), where('date', '==', date));
+        } else {
+            q = query(collection(db, 'exercises'), where('schedule_id', '==', scheduleId));
+        }
+        
         const querySnapshot = await getDocs(q);
         const batch = [];
         querySnapshot.forEach((doc) => {

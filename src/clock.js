@@ -14,6 +14,7 @@ export class Clock24H {
             '식사': '#facc15',
             '운동': '#22c55e',
             '자기관리': '#8b5cf6',
+            '미팅': '#ec4899',
             '기타': '#1e40af'
         };
 
@@ -161,12 +162,53 @@ export class Clock24H {
                 ctx.lineWidth = isComplete ? 2 : 1;
                 ctx.stroke();
 
-                // 텍스트 레이블 (세로형 정렬 로직 적용)
+                // 텍스트 레이블
                 if (item.content) {
-                    this.drawRadialLabel(item.content, startAngle, endAngle, isComplete);
+                    const isMobile = window.innerWidth <= 768;
+                    if (isMobile) {
+                        // 모바일: 도넛 몸통은 색깔만, 글자는 중앙 구멍 근처 내측에 작게 표시
+                        this.drawMobileLabel(item.content, startAngle, endAngle, isComplete);
+                    } else {
+                        // 노트북: 기존 방식 (도넛 몸통 외측에 표시)
+                        this.drawRadialLabel(item.content, startAngle, endAngle, isComplete);
+                    }
                 }
             }
         });
+    }
+
+    drawMobileLabel(text, startAngle, endAngle, isComplete) {
+        const { ctx, size } = this;
+        const center = size / 2;
+        const innerRadius = 90; // 중앙 구멍 반지름 축소 (도넛 두께 확보를 위해 110 -> 90)
+        
+        let diff = endAngle - startAngle;
+        if (diff < 0) diff += Math.PI * 2;
+        if (diff < (Math.PI * 2 / 120)) return; // 아주 짧은 일정은 생략
+
+        const midAngle = startAngle + diff / 2;
+
+        ctx.save();
+        ctx.translate(center, center);
+        ctx.rotate(midAngle);
+
+        // 글자 위치: 중앙 구멍 바로 안쪽
+        const textX = innerRadius - 5;
+
+        let displayText = (isComplete ? '✓ ' : '') + text;
+        
+        // 글자 길이에 따라 폰트 크기 동적 조절 (v2.1.5)
+        let fontSize = 11;
+        if (displayText.length > 8) fontSize = 9;
+        if (displayText.length > 12) fontSize = 7;
+
+        ctx.fillStyle = isComplete ? '#ffffff' : '#475569';
+        ctx.font = `bold ${fontSize}px Inter`; 
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+
+        ctx.fillText(displayText, textX, 0);
+        ctx.restore();
     }
 
     drawRadialLabel(text, startAngle, endAngle, isComplete) {
@@ -253,24 +295,58 @@ export class Clock24H {
         ctx.stroke();
 
         // 중앙 코어 (현재 일정 표시)
+        const isMobile = window.innerWidth <= 768;
+        const coreRadius = isMobile ? 95 : 65; // 모바일 중앙 구멍 크기 재조정 (도넛 두께 확보)
+
         ctx.beginPath();
-        ctx.arc(center, center, 65, 0, 2 * Math.PI);
+        ctx.arc(center, center, coreRadius, 0, 2 * Math.PI);
         ctx.fillStyle = '#1e293b';
         ctx.fill();
         ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = isMobile ? 2 : 3;
         ctx.stroke();
 
         if (currentTask) {
             ctx.fillStyle = '#38bdf8';
-            ctx.font = 'bold 16px Inter';
-            ctx.fillText('현재 일정', center, center - 15);
+            ctx.font = isMobile ? 'bold 13px Inter' : 'bold 16px Inter';
+            ctx.fillText('현재 일정', center, center - (isMobile ? 25 : 15));
+            
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 20px Inter';
-            ctx.fillText(currentTask.content.substring(0, 7), center, center + 12);
+            const content = currentTask.content;
+            
+            if (isMobile) {
+                // 모바일: 글자 길이에 따른 자동 줄바꿈 및 크기 조절
+                let fontSize = 18;
+                if (content.length > 6) fontSize = 15;
+                if (content.length > 10) fontSize = 12;
+                
+                ctx.font = `bold ${fontSize}px Inter`;
+                
+                if (content.indexOf(' ') !== -1) {
+                    // 공백이 있으면 공백 기준으로 나눔
+                    const words = content.split(' ');
+                    const mid = Math.ceil(words.length / 2);
+                    const line1 = words.slice(0, mid).join(' ');
+                    const line2 = words.slice(mid).join(' ');
+                    
+                    ctx.fillText(line1, center, center + 5);
+                    ctx.fillText(line2, center, center + 5 + fontSize + 8); // 줄간격 8px 추가
+                } else if (content.length > 8) {
+                    // 공백이 없는데 길면 어쩔 수 없이 중간을 나눔 (단어 파괴 방지를 위해 폰트를 더 줄임)
+                    const mid = Math.ceil(content.length / 2);
+                    ctx.font = `bold ${fontSize - 2}px Inter`;
+                    ctx.fillText(content.substring(0, mid), center, center + 5);
+                    ctx.fillText(content.substring(mid), center, center + 5 + fontSize + 6);
+                } else {
+                    ctx.fillText(content, center, center + 10);
+                }
+            } else {
+                ctx.font = 'bold 20px Inter';
+                ctx.fillText(content.substring(0, 15), center, center + 12);
+            }
         } else {
             ctx.fillStyle = '#64748b';
-            ctx.font = '600 16px Inter';
+            ctx.font = isMobile ? '600 13px Inter' : '600 16px Inter';
             ctx.fillText('일정 없음', center, center);
         }
 

@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: './', // GitHub Pages 배포를 위해 상대 경로 사용
+  base: '/dirly/', // GitHub 저장소 이름에 맞춰 절대 경로로 수정
   build: {
     outDir: 'dist',
   },

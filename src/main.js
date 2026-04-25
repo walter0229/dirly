@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('open-stats-btn').onclick = () => {
         statsModal.classList.add('active');
-        stats.updateStats();
+        stats.updateStats(planner.currentDate);
     };
 
     document.getElementById('open-date-search-btn').onclick = () => {

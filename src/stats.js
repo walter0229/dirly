@@ -7,6 +7,7 @@ export class StatsManager {
         this.container = document.getElementById(containerId);
         this.charts = [];
         this.currentPeriod = 'weekly';
+        this.currentReferenceDate = new Date();
         this.setupEventListeners();
     }
 
@@ -16,12 +17,15 @@ export class StatsManager {
                 document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
                 e.target.classList.add('active');
                 this.currentPeriod = e.target.dataset.period;
-                await this.updateStats();
+                await this.updateStats(this.currentReferenceDate);
             };
         });
     }
 
-    async updateStats() {
+    async updateStats(date = null) {
+        if (date) {
+            this.currentReferenceDate = new Date(date);
+        }
         const data = await fetchExerciseStats();
         this.renderCharts(data);
     }
@@ -57,8 +61,8 @@ export class StatsManager {
         this.charts.forEach(chart => chart.destroy());
         this.charts = [];
         this.container.innerHTML = '';
-
-        const now = new Date();
+        
+        const now = this.currentReferenceDate || new Date();
         const titles = [...new Set(rawData.map(d => d.name || d.title))].filter(Boolean).sort();
 
         if (titles.length === 0) {

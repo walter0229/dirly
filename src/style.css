@@ -241,14 +241,6 @@ header h1 {
 
 .full-modal.active {
     display: flex;
-}
-
-.modal-content {
-    width: 100%;
-    max-width: 1100px;
-    margin: 0 auto;
-    height: 100%;
-    display: flex;
     flex-direction: column;
 }
 
@@ -788,4 +780,106 @@ tr.highlight {
     0% { opacity: 0.5; }
     50% { opacity: 1; }
     100% { opacity: 0.5; }
+}
+
+/* --- 모바일 전용 최적화 (768px 이하) v2.1.1 --- */
+@media (max-width: 768px) {
+    header {
+        padding: 10px 0;
+    }
+
+    .header-content {
+        flex-direction: column;
+        gap: 12px;
+        padding: 10px;
+    }
+
+    .header-content h1 {
+        font-size: 1.4rem;
+        margin-bottom: 5px;
+    }
+
+    .main-nav {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr); /* 3열 배치 */
+        width: 100%;
+        gap: 6px;
+    }
+
+    .main-nav button {
+        padding: 10px 2px;
+        font-size: 0.75rem;
+        width: 100%;
+        text-align: center;
+        border-radius: 8px;
+    }
+
+    /* 시계 컨테이너 크기 조정 */
+    .clock-container {
+        width: 90vw;
+        height: 90vw;
+        max-width: 360px;
+        max-height: 360px;
+        margin-top: 20px;
+    }
+
+    #current-date-display {
+        font-size: 0.9rem;
+    }
+
+    /* 모달 창을 화면에 꽉 채움 */
+    .modal-content {
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: none !important;
+        border-radius: 0 !important;
+        padding: 15px 10px !important;
+        margin: 0 !important;
+    }
+
+    .modal-header h2 {
+        font-size: 1.2rem;
+    }
+
+    /* 테이블 모바일 최적화 */
+    .table-scroll-area {
+        margin-top: 10px;
+        border-radius: 8px;
+    }
+
+    #daily-planner-table {
+        min-width: 500px;
+    }
+
+    #daily-planner-table th, 
+    #daily-planner-table td {
+        padding: 10px 5px;
+        font-size: 0.8rem;
+    }
+
+    .time-range-cell {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+.cat-미팅 {
+    background: rgba(236, 72, 153, 0.2) !important;
+    color: #ec4899 !important;
+    border: 1px solid rgba(236, 72, 153, 0.4) !important;
+}
+
+    .time-range-cell input {
+        width: 80px !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* 다이어리 모달 특화 */
+    .diary-modal-card {
+        padding: 20px 15px !important;
+    }
+
+    .diary-text-container {
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
 }

@@ -67,7 +67,13 @@ export class DiaryManager {
         const categories = [...new Set(schedules.map(s => s.category))];
         
         let intro = '';
-        const morningTask = schedules.find(s => s.startTime < '12:00');
+        // '취침'을 제외한 실질적인 첫 활동 찾기 (v2.1.7)
+        const morningTask = schedules.find(s => 
+            s.startTime < '12:00' && 
+            s.category !== '취침' && 
+            !s.content.includes('취침') &&
+            !s.content.includes('잠자기')
+        );
         const eveningTask = schedules.find(s => s.startTime >= '18:00');
 
         // 서론 생성
