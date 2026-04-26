@@ -571,8 +571,8 @@ tr.highlight {
     background: rgba(244, 63, 94, 0.1);
     border: 1px solid rgba(244, 63, 94, 0.3);
     color: #f43f5e;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border-radius: 8px;
     font-size: 1.1rem;
     cursor: pointer;
@@ -594,8 +594,8 @@ tr.highlight {
     background: rgba(34, 197, 94, 0.1);
     border: 1px solid rgba(34, 197, 94, 0.3);
     color: #22c55e;
-    width: 35px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border-radius: 8px;
     font-size: 1.1rem;
     cursor: pointer;

@@ -339,13 +339,18 @@ export class Planner {
             if (e.target.classList.contains('cat-select')) item.category = e.target.value;
             if (e.target.classList.contains('repeat-select')) item.repeat = e.target.value;
 
-            // 변경 사항 즉시 저장 (검증은 blur에서 수행하여 입력 흐름을 방해하지 않음)
-            await this.syncData(item);
-            
-            // 카테고리나 반복 설정 변경 시에만 리스트 갱신
+            // 내용, 카테고리, 반복 설정만 자동 저장 (시간은 저장 버튼으로만 저장 - v2.2.6)
             const isTimeInput = e.target.classList.contains('start-time') || e.target.classList.contains('end-time');
-            const isContentInput = e.target.classList.contains('content-input');
             
+            if (!isTimeInput) {
+                await this.syncData(item);
+            } else {
+                // 시간 변경 시에는 로컬 시계만 즉시 업데이트
+                if (this.onUpdate) this.onUpdate(this.schedules);
+            }
+            
+            // 카테고리나 반복 설정 변경 시에만 리스트 갱신 (시간 입력 시 렌더링 방지)
+            const isContentInput = e.target.classList.contains('content-input');
             if (!isTimeInput && !isContentInput) {
                 this.renderList();
             }
@@ -364,17 +369,15 @@ export class Planner {
                 item.endTime = e.target.value;
             }
 
-            // 시간 입력 시 즉시 데이터 동기화 (시계 반영용)
+            // 시간 입력 시 로컬 시계만 즉시 업데이트 (서버 저장 안 함 - v2.2.6)
             if (e.target.classList.contains('start-time') || e.target.classList.contains('end-time')) {
                 // HH:mm 형식 자동 보정 (예: 9 -> 09:00)
                 let val = e.target.value.replace(/[^0-9:]/g, '');
                 if (val.length === 2 && !val.includes(':')) val += ':';
                 e.target.value = val;
 
-                // 유효한 형식일 때만 저장 (HH:mm)
-                if (/^\d{2}:\d{2}$/.test(val)) {
-                    await this.syncData(item);
-                }
+                // 시계 반영
+                if (this.onUpdate) this.onUpdate(this.schedules);
             }
         });
 
