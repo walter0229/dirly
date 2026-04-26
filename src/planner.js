@@ -259,27 +259,50 @@ export class Planner {
             } else if (saveBtn) {
                 e.stopPropagation();
                 const id = saveBtn.dataset.id;
+                const tr = saveBtn.closest('tr');
                 const item = this.schedules.find(s => s.id === id);
-                if (!item) return;
+                if (!item || !tr) return;
 
-                // 1. 논리적 오류 체크 (시작 >= 종료)
-                if (item.startTime >= item.endTime) {
+                // 입력 필드에서 현재 값 직접 추출 (데이터 동기화 보장)
+                const startVal = tr.querySelector('.start-time').value;
+                const endVal = tr.querySelector('.end-time').value;
+                const contentVal = tr.querySelector('.content-input').value;
+                const catVal = tr.querySelector('.cat-select').value;
+                const repeatVal = tr.querySelector('.repeat-select').value;
+
+                // 임시 객체로 검증 수행
+                const testItem = { ...item, startTime: startVal, endTime: endVal };
+
+                // 1. 형식 체크 (HH:mm)
+                const timeRegex = /^\d{2}:\d{2}$/;
+                if (!timeRegex.test(startVal) || !timeRegex.test(endVal)) {
+                    alert('⚠️ 시간 형식이 올바르지 않습니다. (예: 09:00)');
+                    return;
+                }
+
+                // 2. 논리적 오류 체크 (시작 >= 종료)
+                if (startVal >= endVal) {
                     alert('⚠️ 시작 시간은 종료 시간보다 빨라야 합니다.');
-                    // 서버 데이터 기반으로 상태 복구
                     await this.loadData();
                     this.renderList();
                     return;
                 }
 
-                // 2. 다른 일정과 중복 체크
-                if (this.isOverlap(item)) {
+                // 3. 다른 일정과 중복 체크
+                if (this.isOverlap(testItem)) {
                     alert('⚠️ 이미 해당 시간에 다른 일정이 있습니다! 다시 확인해 주세요.');
                     await this.loadData();
                     this.renderList();
                     return;
                 }
 
-                // 모든 검증 통과 시 서버 저장 및 시계 업데이트
+                // 검증 통과 시 데이터 업데이트 및 서버 저장
+                item.startTime = startVal;
+                item.endTime = endVal;
+                item.content = contentVal;
+                item.category = catVal;
+                item.repeat = repeatVal;
+
                 const { saveSchedule: apiSaveSchedule } = await import('./firebase');
                 await apiSaveSchedule(item);
                 alert('✅ 저장되었습니다.');
