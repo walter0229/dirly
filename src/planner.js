@@ -144,6 +144,9 @@ export class Planner {
                     </div>
                 </td>
                 <td>
+                    <button class="save-btn" data-id="${item.id}" title="저장">✓</button>
+                </td>
+                <td>
                     <select class="cat-select cat-${item.category || '기타'}" data-id="${item.id}">
                         <option value="회사" ${item.category === '회사' ? 'selected' : ''}>회사</option>
                         <option value="미팅" ${item.category === '미팅' ? 'selected' : ''}>미팅</option>
@@ -170,7 +173,7 @@ export class Planner {
                 </td>
                 <td>
                     <div class="action-btns">
-                        <button class="delete-btn" data-id="${item.id}">&times;</button>
+                        <button class="delete-btn" data-id="${item.id}" title="삭제">&times;</button>
                     </div>
                 </td>
             `;
@@ -246,11 +249,43 @@ export class Planner {
         // [삭제 및 추가 버튼 클릭 이벤트 위임]
         tbody.addEventListener('click', async (e) => {
             const delBtn = e.target.closest('.delete-btn');
+            const saveBtn = e.target.closest('.save-btn');
+            
             if (delBtn) {
                 e.stopPropagation();
                 const id = delBtn.dataset.id;
                 console.log('[Planner] Delete clicked for ID:', id);
                 await this.deleteSchedule(id);
+            } else if (saveBtn) {
+                e.stopPropagation();
+                const id = saveBtn.dataset.id;
+                const item = this.schedules.find(s => s.id === id);
+                if (!item) return;
+
+                // 1. 논리적 오류 체크 (시작 >= 종료)
+                if (item.startTime >= item.endTime) {
+                    alert('⚠️ 시작 시간은 종료 시간보다 빨라야 합니다.');
+                    // 서버 데이터 기반으로 상태 복구
+                    await this.loadData();
+                    this.renderList();
+                    return;
+                }
+
+                // 2. 다른 일정과 중복 체크
+                if (this.isOverlap(item)) {
+                    alert('⚠️ 이미 해당 시간에 다른 일정이 있습니다! 다시 확인해 주세요.');
+                    await this.loadData();
+                    this.renderList();
+                    return;
+                }
+
+                // 모든 검증 통과 시 서버 저장 및 시계 업데이트
+                const { saveSchedule: apiSaveSchedule } = await import('./firebase');
+                await apiSaveSchedule(item);
+                alert('✅ 저장되었습니다.');
+                
+                if (this.onUpdate) this.onUpdate(this.schedules);
+                this.renderList();
             }
         });
 
@@ -325,38 +360,9 @@ export class Planner {
             const item = this.schedules.find(s => s.id === id);
             if (!item) return;
 
+            // 내용 입력 등 일반 필드는 기존처럼 자동 저장 (시간 제외)
             if (e.target.classList.contains('content-input')) {
                 await this.syncData(item);
-            }
-            
-            // 시간 입력 검증: .time-range-container를 완전히 벗어났을 때만 수행
-            const timeContainer = e.target.closest('.time-range-container');
-            if (timeContainer && (!e.relatedTarget || !timeContainer.contains(e.relatedTarget))) {
-                const startInput = timeContainer.querySelector('.start-time');
-                const endInput = timeContainer.querySelector('.end-time');
-                
-                // 1. 논리적 오류 체크 (시작 > 종료)
-                if (item.startTime >= item.endTime) {
-                    alert('⚠️ 시작 시간은 종료 시간보다 빨라야 합니다.');
-                    // 둘 다 이전 값으로 복원 (간단하게 renderList 재호출로 해결 가능하지만 데이터 정합성 위해)
-                    item.startTime = startInput.dataset.oldValue || item.startTime;
-                    item.endTime = endInput.dataset.oldValue || item.endTime;
-                    this.renderList();
-                    await this.syncData(item);
-                    return;
-                }
-
-                // 2. 다른 일정과 중복 체크
-                if (this.isOverlap(item)) {
-                    alert('⚠️ 이미 해당 시간에 다른 일정이 있습니다! 다시 확인해 주세요.');
-                    item.startTime = startInput.dataset.oldValue || item.startTime;
-                    item.endTime = endInput.dataset.oldValue || item.endTime;
-                    this.renderList();
-                    await this.syncData(item);
-                    return;
-                }
-
-                this.renderList(); 
             }
         });
     }
