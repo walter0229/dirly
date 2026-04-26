@@ -345,7 +345,8 @@ export class Planner {
             if (!isTimeInput) {
                 await this.syncData(item);
             } else {
-                // 시간 변경 시에는 로컬 시계만 즉시 업데이트
+                // 시간 변경 시에도 로컬 데이터와 시계 즉시 업데이트 (v2.2.7)
+                this.updateLocalStorage();
                 if (this.onUpdate) this.onUpdate(this.schedules);
             }
             
@@ -376,7 +377,8 @@ export class Planner {
                 if (val.length === 2 && !val.includes(':')) val += ':';
                 e.target.value = val;
 
-                // 시계 반영
+                // 시계 및 로컬 저장소 반영 (v2.2.7)
+                this.updateLocalStorage();
                 if (this.onUpdate) this.onUpdate(this.schedules);
             }
         });
@@ -432,6 +434,7 @@ export class Planner {
                 console.log('[Planner] Single day exception added for ID:', id);
             }
             
+            this.updateLocalStorage(); // 로컬 저장소 반영 (v2.2.7)
             if (this.onUpdate) this.onUpdate(this.schedules);
             this.renderList();
         } catch (e) {
@@ -441,6 +444,9 @@ export class Planner {
     }
 
     async syncData(item) {
+        // 로컬 데이터 즉시 동기화 (v2.2.7)
+        this.updateLocalStorage();
+        
         // 실시간 시계 업데이트 (로컬)
         if (this.onUpdate) this.onUpdate(this.schedules);
 
@@ -454,6 +460,24 @@ export class Planner {
                 console.error('[Planner] Sync failed', e);
             }
         }, 500);
+    }
+
+    // 현재 메모리에 있는 schedules를 localStorage에 반영 (v2.2.7)
+    updateLocalStorage() {
+        const all = JSON.parse(localStorage.getItem('local_schedules') || '[]');
+        
+        // 현재 날짜의 일정들을 전체 목록에서 찾아 업데이트하거나 교체
+        this.schedules.forEach(item => {
+            const index = all.findIndex(s => s.id === item.id);
+            if (index !== -1) {
+                all[index] = { ...item };
+            } else {
+                all.push({ ...item });
+            }
+        });
+        
+        localStorage.setItem('local_schedules', JSON.stringify(all));
+        console.log('[Planner] localStorage updated with current schedules');
     }
 
     showMemoModal(item) {
