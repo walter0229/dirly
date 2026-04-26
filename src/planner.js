@@ -84,17 +84,18 @@ export class Planner {
         const targetDate = new Date(this.currentDate);
         const dayOfWeek = targetDate.getDay(); // 0:일, 1:월, ..., 6:토
         
-        return all.filter(item => {
+        // 1. 해당 날짜에 유효한 모든 일정 필터링
+        const relevant = all.filter(item => {
             if (!item.startTime || !item.endTime) return false;
             const itemDate = new Date(item.date);
             
             // 예외 날짜 체크 (당일만 삭제된 경우)
             if (item.exceptions && item.exceptions.includes(this.currentDate)) return false;
 
-            // 1. 해당 날짜 직접 지정 일정
+            // 해당 날짜 직접 지정 일정
             if (item.date === this.currentDate) return true;
             
-            // 2. 반복 일정 (시작일 이후여야 함)
+            // 반복 일정 (시작일 이후여야 함)
             if (itemDate > targetDate) return false;
             
             switch(item.repeat) {
@@ -107,6 +108,49 @@ export class Planner {
                 default: return false;
             }
         });
+
+        // 2. 중복 일정 우선순위 처리 (최신 생성일 우선 - v2.2.8)
+        // 생성날짜(date) 내림차순, 그리고 ID 내림차순으로 정렬하여 최신 것이 먼저 오게 함
+        relevant.sort((a, b) => {
+            const dateCompare = (b.date || '').localeCompare(a.date || '');
+            if (dateCompare !== 0) return dateCompare;
+            return (b.id || '').localeCompare(a.id || '');
+        });
+
+        const finalSchedules = [];
+        const occupiedIntervals = []; // [{s, e}] 분 단위
+
+        const parseToMin = (t) => {
+            const [h, m] = t.split(':').map(Number);
+            return h * 60 + m;
+        };
+
+        relevant.forEach(item => {
+            const s1 = parseToMin(item.startTime);
+            const e1 = parseToMin(item.endTime);
+            
+            // 이미 점유된 최신 일정과 겹치는지 확인
+            const isOverlappedByNewer = occupiedIntervals.some(range => {
+                return (s1 < range.e && e1 > range.s);
+            });
+
+            if (!isOverlappedByNewer) {
+                // 겹치지 않으면 추가하고 점유 상태 기록
+                occupiedIntervals.push({ s: s1, e: e1 });
+                
+                // 해당 날짜의 완료 상태 결정 (v2.2.8)
+                const isCompletedToday = item.completedDates && item.completedDates.includes(this.currentDate);
+                
+                finalSchedules.push({
+                    ...item,
+                    status: isCompletedToday ? 'complete' : 'incomplete'
+                });
+            } else {
+                console.log(`[Planner] Overlap detected. Skipping older schedule: ${item.content} (${item.startTime}~${item.endTime}) created on ${item.date}`);
+            }
+        });
+
+        return finalSchedules;
     }
 
     async changeDate(newDate) {
@@ -497,7 +541,14 @@ export class Planner {
         const found = all.find(s => s.id === id);
         if (found) {
             found.memo = memo;
-            found.status = 'complete';
+            // 날짜별 완료 상태 관리 (v2.2.8)
+            if (!found.completedDates) found.completedDates = [];
+            if (!found.completedDates.includes(this.currentDate)) {
+                found.completedDates.push(this.currentDate);
+            }
+            // 하위 호환성을 위해 status도 유지하지만, fetch 시에는 날짜별로 다시 계산됨
+            found.status = 'complete'; 
+            
             localStorage.setItem('local_schedules', JSON.stringify(all));
             
             // 기존 운동 데이터 삭제 및 새 운동 데이터 저장을 위한 함수 불러오기
