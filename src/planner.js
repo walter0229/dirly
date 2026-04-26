@@ -444,8 +444,13 @@ export class Planner {
             found.status = 'complete';
             localStorage.setItem('local_schedules', JSON.stringify(all));
             
-            // 기존 운동 데이터 삭제 (해당 날짜만 삭제하여 다른 날짜 데이터 보존)
-            const { saveExercise, deleteExerciseByScheduleId } = await import('./firebase');
+            // 기존 운동 데이터 삭제 및 새 운동 데이터 저장을 위한 함수 불러오기
+            const { saveSchedule: apiSaveSchedule, saveExercise, deleteExerciseByScheduleId } = await import('./firebase');
+            
+            // 1. 일정 상태 및 메모를 서버에 저장 (v2.2.4 필수 수정)
+            await apiSaveSchedule(found);
+            
+            // 2. 기존 운동 데이터 삭제 (해당 날짜만 삭제하여 다른 날짜 데이터 보존)
             await deleteExerciseByScheduleId(id, this.currentDate);
             
             // 새 운동 데이터 파싱 및 저장 (카테고리가 '운동'인 경우)
