@@ -457,11 +457,11 @@ export class Planner {
                     // 줄바꿈뿐만 아니라 콤마(,)로도 운동을 구분하여 파싱
                     const parts = line.split(',');
                     parts.forEach(part => {
-                        // 패턴: 운동명 : 수치(단위)
-                        const match = part.match(/([^:]+)\s*:\s*(\d+)\s*(.*)/);
+                        // 패턴: 운동명 : 수치(단위) - 소수점 지원 (v2.2.3)
+                        const match = part.match(/([^:]+)\s*:\s*(\d*\.?\d+)\s*(.*)/);
                         if (match) {
                             const title = match[1].trim();
-                            const value = parseInt(match[2]);
+                            const value = parseFloat(match[2]);
                             const unit = match[3].trim() || '회'; // 단위가 없으면 기본 '회'
                             
                             exerciseData.push({

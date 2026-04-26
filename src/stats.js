@@ -62,6 +62,18 @@ export class StatsManager {
         this.charts = [];
         this.container.innerHTML = '';
         
+        // 종목별 단위 매핑 (v2.2.3)
+        this.exerciseUnits = {
+            '걷기': 'Km',
+            '달리기': 'Km',
+            '수영': '분',
+            '레그레이즈': '회',
+            '스쿼트': '회',
+            '윗몸일으키기': '회',
+            '역기들기': '회',
+            '팔목운동': '회'
+        };
+        
         const now = this.currentReferenceDate || new Date();
         const titles = [...new Set(rawData.map(d => d.name || d.title))].filter(Boolean).sort();
 
@@ -102,19 +114,26 @@ export class StatsManager {
         titles.forEach(title => {
             const exerciseData = rawData.filter(d => (d.name || d.title) === title);
             let rowTotal = 0;
+            const unit = this.exerciseUnits[title] || '회';
             
             const cellHtml = dateKeys.map(key => {
                 const val = exerciseData
                     .filter(item => this.currentPeriod === 'yearly' ? item.date.startsWith(key) : item.date === key)
                     .reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
                 rowTotal += val;
-                return `<td>${val > 0 ? val : ''}</td>`;
+                
+                // 소수점이 있으면 그대로, 없으면 정수로 표시
+                const displayVal = val > 0 ? (Number.isInteger(val) ? val : val.toFixed(1)) : '';
+                return `<td>${displayVal}</td>`;
             }).join('');
+
+            // 합계 표시 최적화 (v2.2.3)
+            const displayTotal = rowTotal > 0 ? (Number.isInteger(rowTotal) ? rowTotal : rowTotal.toFixed(1)) : '';
 
             tableHtml += `
                 <tr>
-                    <td class="sticky-col-1">${title}</td>
-                    <td class="sticky-col-2 row-total">${rowTotal > 0 ? rowTotal : ''}</td>
+                    <td class="sticky-col-1">${title} (${unit})</td>
+                    <td class="sticky-col-2 row-total">${displayTotal ? `${displayTotal} ${unit}` : ''}</td>
                     ${cellHtml}
                 </tr>
             `;
