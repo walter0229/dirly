@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>민성일기</title>
     <link rel="icon" type="image/png" href="/dirly/icon.png">
-  <script type="module" crossorigin src="/dirly/assets/index-BrEJyvyk.js"></script>
+  <script type="module" crossorigin src="/dirly/assets/index-CU2kDtwU.js"></script>
   <link rel="stylesheet" crossorigin href="/dirly/assets/index-BmCOXNMR.css">
 </head>
 <body>
@@ -19,6 +19,7 @@
                     <button id="open-stats-btn" class="glass-btn">운동통계</button>
                     <button id="open-date-search-btn" class="glass-btn">날짜검색</button>
                     <button id="open-memo-search-btn" class="glass-btn">메모검색</button>
+                    <button id="open-settings-btn" class="glass-btn">⚙️설정</button>
                 </nav>
                 <div id="current-date-display">
                     <span id="date-text"></span>
@@ -146,6 +147,25 @@
                 <div class="modal-btns">
                     <button id="save-memo-btn" class="glass-btn primary-btn">기록하기</button>
                     <button id="close-memo-modal-btn" class="glass-btn">닫기</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- [6] 설정 모달 -->
+        <div id="settings-modal" class="full-modal">
+            <div class="modal-content glass-card small-modal">
+                <div class="modal-header">
+                    <h2>⚙️ 설정</h2>
+                    <button id="close-settings-btn" class="close-btn">&times;</button>
+                </div>
+                <div class="settings-form">
+                    <div class="form-group">
+                        <label for="gemini-api-key" style="font-weight: bold; color: #fff;">Gemini API Key</label>
+                        <input type="password" id="gemini-api-key" placeholder="AI 일기 작성을 위한 API 키 입력" style="width: 100%; padding: 10px; margin-top: 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff; outline: none;">
+                        <p style="font-size: 0.8rem; color: #aaa; margin-top: 8px;">* 키는 브라우저 내부에만 안전하게 저장됩니다.</p>
+                        <p style="font-size: 0.8rem; color: #38bdf8; margin-top: 4px;"><a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #38bdf8; text-decoration: underline;">무료 API 키 발급받기</a></p>
+                    </div>
+                    <button id="save-settings-btn" class="glass-btn primary-btn" style="margin-top: 20px; width: 100%;">저장</button>
                 </div>
             </div>
         </div>
